@@ -3,21 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>全台空氣品質即時看板</title>
+  <title>全台紫外線即時監測儀表板</title>
   <style>
     :root {
       --bg: #f8fafc;
       --card-bg: #ffffff;
-      --text: #1e293b;
+      --text: #0f172a;
       --text-muted: #64748b;
       --border: #e2e8f0;
-      --primary: #0284c7;
-      --good: #10b981;
-      --moderate: #f59e0b;
-      --unhealthy-sensitive: #f97316;
-      --unhealthy: #ef4444;
-      --very-unhealthy: #8b5cf6;
-      --hazardous: #7f1d1d;
+      --primary: #2563eb;
+      /* 紫外線標準分級顏色 */
+      --uv-low: #10b981;       /* 0-2 低量級 */
+      --uv-mod: #f59e0b;       /* 3-5 中量級 */
+      --uv-high: #f97316;      /* 6-7 高量級 */
+      --uv-very: #ef4444;      /* 8-10 過量級 */
+      --uv-extreme: #7c3aed;   /* 11+ 危險級 */
     }
 
     * {
@@ -31,19 +31,25 @@
       background-color: var(--bg);
       color: var(--text);
       line-height: 1.5;
-      padding: 24px;
+      padding: 24px 16px;
     }
 
     .container {
-      max-width: 1200px;
+      max-width: 1100px;
       margin: 0 auto;
     }
 
+    /* 頂部標頭 */
     header {
-      margin-bottom: 24px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
 
-    .header-top {
+    .header-main {
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
@@ -52,32 +58,32 @@
     }
 
     h1 {
-      font-size: 1.75rem;
+      font-size: 1.6rem;
       font-weight: 700;
-      color: var(--text);
     }
 
-    .meta-info {
-      font-size: 0.875rem;
+    .source-tag {
+      font-size: 0.85rem;
       color: var(--text-muted);
-      margin-top: 4px;
+      margin-top: 6px;
     }
 
-    .meta-info a {
+    .source-tag a {
       color: var(--primary);
       text-decoration: none;
+      font-weight: 500;
     }
 
-    .meta-info a:hover {
+    .source-tag a:hover {
       text-decoration: underline;
     }
 
-    /* 控制列與按鈕 */
+    /* 操作列 */
     .controls {
       display: flex;
       flex-wrap: wrap;
       gap: 12px;
-      margin-top: 16px;
+      margin-top: 18px;
       align-items: center;
     }
 
@@ -86,8 +92,9 @@
       border: 1px solid var(--border);
       border-radius: 8px;
       font-size: 0.9rem;
-      width: 240px;
+      width: 260px;
       outline: none;
+      transition: border-color 0.2s;
     }
 
     .search-input:focus {
@@ -98,15 +105,12 @@
       padding: 8px 16px;
       border-radius: 8px;
       font-size: 0.9rem;
-      font-weight: 500;
+      font-weight: 600;
       cursor: pointer;
       border: none;
-      transition: opacity 0.2s;
-    }
-
-    .btn-primary {
       background-color: var(--primary);
       color: white;
+      transition: opacity 0.2s;
     }
 
     .btn:hover {
@@ -118,49 +122,48 @@
       cursor: not-allowed;
     }
 
-    /* 統計摘要 */
-    .stats-grid {
+    /* 總覽指標 */
+    .stats-row {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-      margin-bottom: 24px;
+      gap: 14px;
+      margin-bottom: 20px;
     }
 
     .stat-card {
       background: var(--card-bg);
-      padding: 16px;
-      border-radius: 12px;
       border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
     }
 
-    .stat-title {
+    .stat-label {
       font-size: 0.8rem;
       color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
     }
 
-    .stat-value {
-      font-size: 1.5rem;
+    .stat-val {
+      font-size: 1.6rem;
       font-weight: 700;
       margin-top: 4px;
     }
 
-    /* 卡片列表 */
+    /* 測站卡片網格 */
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
       gap: 16px;
     }
 
     .card {
       background: var(--card-bg);
-      border-radius: 12px;
       border: 1px solid var(--border);
+      border-radius: 12px;
       padding: 16px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      border-left: 6px solid var(--border);
       transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
 
@@ -169,91 +172,67 @@
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     }
 
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 12px;
-    }
-
-    .site-name {
+    .card-title {
       font-size: 1.15rem;
-      font-weight: 600;
-    }
-
-    .county {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-    }
-
-    .aqi-pill {
-      padding: 4px 10px;
-      border-radius: 9999px;
       font-weight: 700;
+    }
+
+    .card-county {
       font-size: 0.85rem;
-      color: white;
-      display: inline-block;
-    }
-
-    .card-body {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin: 12px 0;
-      font-size: 0.85rem;
-    }
-
-    .detail-item {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .detail-label {
       color: var(--text-muted);
-      font-size: 0.75rem;
     }
 
-    .detail-val {
-      font-weight: 600;
+    .uv-score {
+      font-size: 2.2rem;
+      font-weight: 800;
+      line-height: 1;
+      margin: 12px 0 6px 0;
+    }
+
+    .uv-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: white;
     }
 
     .card-footer {
       font-size: 0.75rem;
       color: var(--text-muted);
-      border-top: 1px solid var(--border);
+      border-top: 1px dashed var(--border);
       padding-top: 8px;
-      margin-top: 8px;
-      text-align: right;
+      margin-top: 12px;
     }
 
-    /* 狀態提示 */
+    /* 狀態區塊 (載入與錯誤) */
     .status-panel {
+      background: var(--card-bg);
+      border: 1px dashed var(--border);
+      border-radius: 12px;
       padding: 48px 16px;
       text-align: center;
-      background: var(--card-bg);
-      border-radius: 12px;
-      border: 1px dashed var(--border);
-      margin: 24px 0;
     }
 
     .spinner {
-      width: 36px;
-      height: 36px;
+      width: 32px;
+      height: 32px;
       border: 3px solid var(--border);
       border-top-color: var(--primary);
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
-      margin: 0 auto 16px;
+      margin: 0 auto 12px;
     }
 
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
 
-    .error-msg {
-      color: var(--unhealthy);
-      margin-bottom: 16px;
-      font-weight: 500;
+    .error-text {
+      color: var(--uv-very);
+      font-weight: 600;
+      margin-bottom: 12px;
     }
   </style>
 </head>
@@ -261,15 +240,15 @@
 
   <div class="container">
     <header>
-      <div class="header-top">
+      <div class="header-main">
         <div>
-          <h1>台灣空氣品質即時看板 (AQI)</h1>
-          <p class="meta-info">
-            資料來源：<a href="https://data.gov.tw/dataset/40448" target="_blank" rel="noopener">政府資料開放平臺 / 環境部</a>
-            ｜ 預設更新：每小時
-          </p>
+          <h1>☀️ 全台紫外線即時監測看板</h1>
+          <div class="source-tag">
+            資料來源：<a href="https://data.gov.tw/dataset/31899" target="_blank" rel="noopener">政府資料開放平臺 (Dataset #31899)</a>
+            ｜ 更新週期：日間每小時
+          </div>
         </div>
-        <button id="refresh-btn" class="btn btn-primary" onclick="fetchData()">🔄 手動重新整理</button>
+        <button id="refresh-btn" class="btn" onclick="fetchUvData()">🔄 手動重新整理</button>
       </div>
 
       <div class="controls">
@@ -277,199 +256,201 @@
           type="text" 
           id="search-input" 
           class="search-input" 
-          placeholder="搜尋測站或縣市 (如：板橋、高雄)" 
-          oninput="handleSearch()"
+          placeholder="搜尋測站或縣市 (例如：臺北、花蓮)" 
+          oninput="filterData()"
         />
-        <span id="update-timestamp" class="meta-info"></span>
+        <span id="data-time" style="font-size: 0.85rem; color: var(--text-muted);"></span>
       </div>
     </header>
 
-    <!-- 摘要總覽 -->
-    <div id="stats-section" class="stats-grid" style="display: none;">
+    <!-- 總覽指標摘要 -->
+    <div id="stats-section" class="stats-row" style="display: none;">
       <div class="stat-card">
-        <div class="stat-title">監測站總數</div>
-        <div class="stat-value" id="stat-total">-</div>
+        <div class="stat-label">監測站總數</div>
+        <div class="stat-val" id="stat-count">-</div>
       </div>
       <div class="stat-card">
-        <div class="stat-title">全台平均 AQI</div>
-        <div class="stat-value" id="stat-avg">-</div>
+        <div class="stat-label">全台平均 UVI</div>
+        <div class="stat-val" id="stat-avg">-</div>
       </div>
       <div class="stat-card">
-        <div class="stat-title">良好比例 (AQI ≤ 50)</div>
-        <div class="stat-value" id="stat-good-ratio">-</div>
+        <div class="stat-label">全台最高 UVI</div>
+        <div class="stat-val" id="stat-max">-</div>
       </div>
     </div>
 
-    <!-- 載入中狀態 -->
-    <div id="loading-state" class="status-panel">
+    <!-- 載入中狀態提示 -->
+    <div id="loading-box" class="status-panel">
       <div class="spinner"></div>
-      <p>正在同步最新監測資料，請稍候...</p>
+      <p>正在串接氣象與環境部紫外線觀測資料，請稍候...</p>
     </div>
 
-    <!-- 失敗提示狀態 -->
-    <div id="error-state" class="status-panel" style="display: none;">
-      <p class="error-msg" id="error-text">無法載入環境部資料，可能為伺服器忙碌或網路異常。</p>
-      <button class="btn btn-primary" onclick="fetchData()">再次嘗試連線</button>
+    <!-- 請求失敗狀態提示 -->
+    <div id="error-box" class="status-panel" style="display: none;">
+      <p class="error-text" id="error-desc">無法連線取得觀測資料</p>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">
+        可能因開放平臺伺服器維護中或跨來源請求受阻。
+      </p>
+      <button class="btn" onclick="fetchUvData()">重新連線嘗試</button>
     </div>
 
-    <!-- 資料卡片網格 -->
+    <!-- 測站卡片列表 -->
     <div id="card-grid" class="grid" style="display: none;"></div>
 
-    <!-- 無搜尋結果提示 -->
-    <div id="empty-state" class="status-panel" style="display: none;">
-      <p>找不到符合條件的測站。</p>
+    <!-- 查無資料提示 -->
+    <div id="empty-box" class="status-panel" style="display: none;">
+      <p>找不到符合條件的測站名稱。</p>
     </div>
   </div>
 
   <script>
-    // 環境部空氣品質指標 (AQI) 開放資料 API (免 API Key 的公開端點)
-    const API_URL = 'https://data.moenv.gov.tw/api/v2/aqx_p_432?api_key=e8dd42e6-9b8b-43f8-991e-b3dee723a52d&limit=100&sort=ImportDate%20desc&format=JSON';
+    // 串接 Dataset #31899 的即時資料端點 (含 CORS 代理容錯機制)
+    const PRIMARY_API = 'https://data.moenv.gov.tw/api/v2/uv_s_01?api_key=e8dd42e6-9b8b-43f8-991e-b3dee723a52d&limit=100&sort=ImportDate%20desc&format=JSON';
+    const PROXY_API = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(PRIMARY_API);
 
-    let allStations = [];
+    let stationData = [];
 
-    // AQI 色彩級距判定
-    function getAqiInfo(aqi) {
-      const val = parseInt(aqi, 10);
-      if (isNaN(val)) return { color: '#94a3b8', text: '無資料' };
-      if (val <= 50) return { color: 'var(--good)', text: '良好' };
-      if (val <= 100) return { color: 'var(--moderate)', text: '普通' };
-      if (val <= 150) return { color: 'var(--unhealthy-sensitive)', text: '對敏感族群不健康' };
-      if (val <= 200) return { color: 'var(--unhealthy)', text: '對所有族群不健康' };
-      if (val <= 300) return { color: 'var(--very-unhealthy)', text: '非常不健康' };
-      return { color: 'var(--hazardous)', text: '危害' };
+    // 依世界衛生組織 (WHO) 紫外線級距判定分級
+    function parseUvLevel(uvi) {
+      const val = parseFloat(uvi);
+      if (isNaN(val) || val < 0) {
+        return { label: '無數據', color: '#94a3b8', level: '未知' };
+      }
+      if (val <= 2) return { label: '微量級', color: 'var(--uv-low)', level: '低' };
+      if (val <= 5) return { label: '中量級', color: 'var(--uv-mod)', level: '中' };
+      if (val <= 7) return { label: '高量級', color: 'var(--uv-high)', level: '高' };
+      if (val <= 10) return { label: '過量級', color: 'var(--uv-very)', level: '極高' };
+      return { label: '危險級', color: 'var(--uv-extreme)', level: '危險' };
     }
 
-    async function fetchData() {
-      const loadingEl = document.getElementById('loading-state');
-      const errorEl = document.getElementById('error-state');
-      const gridEl = document.getElementById('card-grid');
-      const statsEl = document.getElementById('stats-section');
-      const emptyEl = document.getElementById('empty-state');
-      const refreshBtn = document.getElementById('refresh-btn');
+    async function fetchUvData() {
+      const loading = document.getElementById('loading-box');
+      const errorBox = document.getElementById('error-box');
+      const grid = document.getElementById('card-grid');
+      const stats = document.getElementById('stats-section');
+      const empty = document.getElementById('empty-box');
+      const btn = document.getElementById('refresh-btn');
 
-      // 切換狀態為載入中
-      loadingEl.style.display = 'block';
-      errorEl.style.display = 'none';
-      gridEl.style.display = 'none';
-      statsEl.style.display = 'none';
-      emptyEl.style.display = 'none';
-      refreshBtn.disabled = true;
+      // 畫面切換為 Loading 狀態
+      loading.style.display = 'block';
+      errorBox.style.display = 'none';
+      grid.style.display = 'none';
+      stats.style.display = 'none';
+      empty.style.display = 'none';
+      btn.disabled = true;
 
       try {
-        const response = await fetch(API_URL);
-        if (!response.ok) {
-          throw new Error(`HTTP 錯誤：${response.status}`);
-        }
-        const result = await response.json();
-        
-        // 資料集 records 陣列
-        allStations = result.records || [];
-        
-        if (allStations.length === 0) {
-          throw new Error('回傳資料為空');
+        let response;
+        try {
+          // 優先直連
+          response = await fetch(PRIMARY_API);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        } catch (directErr) {
+          // 若遇 CORS 限制或網路問題，降級走 Proxy
+          console.warn('Direct fetch failed, trying proxy...', directErr);
+          response = await fetch(PROXY_API);
+          if (!response.ok) throw new Error(`Proxy HTTP ${response.status}`);
         }
 
-        renderStats(allStations);
-        renderCards(allStations);
-        
-        // 更新時間標示
-        const pubTime = allStations[0]?.publishtime || new Date().toLocaleTimeString();
-        document.getElementById('update-timestamp').textContent = `資料時間：${pubTime}`;
+        const data = await response.json();
+        stationData = data.records || [];
 
-        // 成功顯示
-        loadingEl.style.display = 'none';
-        statsEl.style.display = 'grid';
-        gridEl.style.display = 'grid';
+        if (stationData.length === 0) {
+          throw new Error('回傳資料為空（夜間無觀測數據或維護中）');
+        }
+
+        updateStats(stationData);
+        renderCards(stationData);
+
+        const publishTime = stationData[0]?.publishtime || stationData[0]?.publishdate || '即時';
+        document.getElementById('data-time').textContent = `觀測時間：${publishTime}`;
+
+        loading.style.display = 'none';
+        stats.style.display = 'grid';
+        grid.style.display = 'grid';
       } catch (err) {
         console.error('Fetch error:', err);
-        loadingEl.style.display = 'none';
-        errorEl.style.display = 'block';
-        document.getElementById('error-text').textContent = 
-          `取得資料失敗（${err.message}）。請檢查網路連線或稍後再試。`;
+        loading.style.display = 'none';
+        errorBox.style.display = 'block';
+        document.getElementById('error-desc').textContent = `取得資料失敗：${err.message}`;
       } finally {
-        refreshBtn.disabled = false;
+        btn.disabled = false;
       }
     }
 
-    function renderStats(data) {
-      const validAqi = data.map(d => parseInt(d.aqi, 10)).filter(v => !isNaN(v));
-      const total = validAqi.length;
-      if (total === 0) return;
+    function updateStats(list) {
+      const validValues = list
+        .map(d => parseFloat(d.uvi))
+        .filter(v => !isNaN(v) && v >= 0);
 
-      const sum = validAqi.reduce((acc, cur) => acc + cur, 0);
-      const avg = Math.round(sum / total);
-      const goodCount = validAqi.filter(v => v <= 50).length;
-      const goodRatio = Math.round((goodCount / total) * 100);
+      document.getElementById('stat-count').textContent = `${list.length} 站`;
 
-      document.getElementById('stat-total').textContent = `${data.length} 站`;
-      document.getElementById('stat-avg').textContent = avg;
-      document.getElementById('stat-good-ratio').textContent = `${goodRatio}%`;
+      if (validValues.length > 0) {
+        const sum = validValues.reduce((a, b) => a + b, 0);
+        const avg = (sum / validValues.length).toFixed(1);
+        const max = Math.max(...validValues);
+        document.getElementById('stat-avg').textContent = avg;
+        document.getElementById('stat-max').textContent = max;
+      } else {
+        document.getElementById('stat-avg').textContent = 'N/A';
+        document.getElementById('stat-max').textContent = 'N/A';
+      }
     }
 
-    function renderCards(data) {
-      const gridEl = document.getElementById('card-grid');
-      const emptyEl = document.getElementById('empty-state');
-      gridEl.innerHTML = '';
+    function renderCards(list) {
+      const grid = document.getElementById('card-grid');
+      const empty = document.getElementById('empty-box');
+      grid.innerHTML = '';
 
-      if (data.length === 0) {
-        emptyEl.style.display = 'block';
+      if (list.length === 0) {
+        empty.style.display = 'block';
         return;
       }
-      emptyEl.style.display = 'none';
+      empty.style.display = 'none';
 
-      data.forEach(item => {
-        const aqiInfo = getAqiInfo(item.aqi);
+      list.forEach(item => {
+        const name = item.sitename || item.SiteName || '未命名測站';
+        const county = item.county || item.County || '';
+        const uvi = item.uvi !== undefined ? item.uvi : '0';
+        const levelInfo = parseUvLevel(uvi);
+
         const card = document.createElement('div');
         card.className = 'card';
+        card.style.borderLeftColor = levelInfo.color;
+
         card.innerHTML = `
           <div>
-            <div class="card-header">
-              <div>
-                <span class="site-name">${item.sitename}</span>
-                <span class="county">${item.county}</span>
-              </div>
-              <span class="aqi-pill" style="background-color: ${aqiInfo.color}">
-                AQI ${item.aqi || 'N/A'} · ${aqiInfo.text}
-              </span>
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+              <span class="card-title">${name}</span>
+              <span class="card-county">${county}</span>
             </div>
-            <div class="card-body">
-              <div class="detail-item">
-                <span class="detail-label">PM2.5</span>
-                <span class="detail-val">${item['pm2.5'] || '-'} μg/m³</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">PM10</span>
-                <span class="detail-val">${item.pm10 || '-'} μg/m³</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">O3 (臭氧)</span>
-                <span class="detail-val">${item.o3 || '-'} ppb</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">狀態</span>
-                <span class="detail-val">${item.status || '正常'}</span>
-              </div>
+            <div class="uv-score" style="color: ${levelInfo.color}">
+              ${uvi}
             </div>
+            <span class="uv-badge" style="background-color: ${levelInfo.color}">
+              ${levelInfo.label}
+            </span>
           </div>
           <div class="card-footer">
-            發布時間：${item.publishtime ? item.publishtime.split(' ')[1] : '-'}
+            測站代碼：${item.siteid || item.SiteID || '-'}
           </div>
         `;
-        gridEl.appendChild(card);
+        grid.appendChild(card);
       });
     }
 
-    function handleSearch() {
-      const keyword = document.getElementById('search-input').value.trim().toLowerCase();
-      const filtered = allStations.filter(item => 
-        (item.sitename && item.sitename.includes(keyword)) ||
-        (item.county && item.county.includes(keyword))
-      );
+    function filterData() {
+      const query = document.getElementById('search-input').value.trim().toLowerCase();
+      const filtered = stationData.filter(item => {
+        const site = (item.sitename || item.SiteName || '').toLowerCase();
+        const county = (item.county || item.County || '').toLowerCase();
+        return site.includes(query) || county.includes(query);
+      });
       renderCards(filtered);
     }
 
-    // 頁面載入時觸發請求
-    fetchData();
+    // 初始化自動執行
+    fetchUvData();
   </script>
 </body>
 </html>
